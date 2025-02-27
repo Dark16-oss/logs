@@ -12,7 +12,7 @@ interface UserData {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState<string>('');
 
   // Initialize the database
   const initializeDatabase = async () => {
@@ -20,7 +20,7 @@ export default function LoginScreen() {
       const db = await SQLite.openDatabaseAsync('User.db');
       await db.execAsync(`
         CREATE TABLE IF NOT EXISTS UserData (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id INTEGER PRIMARY KEY,
           Name TEXT NOT NULL,
           LastLogin TEXT,
           LastLogout TEXT
@@ -32,10 +32,10 @@ export default function LoginScreen() {
     }
   };
 
-  // Handle login 
+  // Handle login
   const handleLogin = async () => {
     if (!username.trim()) {
-      Alert.alert('Error', 'Please enter a username.'); 
+      Alert.alert('Error', 'Please enter a username.');
       return;
     }
 
@@ -44,30 +44,29 @@ export default function LoginScreen() {
 
       // Check if the user exists
       const user = await db.getFirstAsync<UserData>(
-        `SELECT * FROM UserData WHERE Name = ?`,
+        `SELECT * FROM UserData WHERE id = ?`,
         [username]
       );
-
       if (!user) {
         Alert.alert('Error', 'User not found. Please check the username and try again.');
         return;
       }
 
-      // Update the LastLogin field 
-      const currentTime = new Date().toISOString(); 
+      // Update the LastLogin field
+      const currentTime = new Date().toISOString();
       await db.runAsync(
-        `UPDATE UserData SET LastLogin = ? WHERE id = ?`,
+        `UPDATE UserData SET LastLogout = NULL, LastLogin = ? WHERE id = ?`,
         [currentTime, user.id]
+
       );
 
       Alert.alert('Success', 'Login recorded successfully!');
-      router.push('/(tabs)/details');
+      router.push('/details'); // Navigate to the details screen
     } catch (error) {
       console.error('Failed to log in:', error);
       Alert.alert('Error', 'Failed to log in. Please try again.');
     }
   };
-
 
   useEffect(() => {
     initializeDatabase();
@@ -78,12 +77,12 @@ export default function LoginScreen() {
       <Text style={styles.title}>Log In</Text>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Username:</Text>
+        <Text style={styles.label}>ID No:</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter your username"
-          onChangeText={setUsername} 
+          placeholder="Enter your ID"
           value={username}
+          onChangeText={setUsername} // Update the username state
         />
       </View>
 

@@ -11,7 +11,7 @@ interface UserData {
 }
 
 export default function InputScreen() {
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState<string>('');
   const [users, setUsers] = useState<UserData[]>([]);
   const router = useRouter();
 
@@ -28,50 +28,26 @@ export default function InputScreen() {
     `);
   };
 
-  // Fetch user data 
-  const handleFetchUserData = async ({ data }: { data: string }) => {
+  // Fetch user data based on search input
+  const handleFetchUserData = async () => {
     const db = await SQLite.openDatabaseAsync('User.db');
     const result = await db.getAllAsync<UserData>(
-      `SELECT * FROM UserData WHERE Name LIKE ?`,
-      [`%${data}%`] 
+      `SELECT * FROM UserData WHERE Name LIKE ? OR id = ?`,
+      [`%${input}%`, input]
     );
+    console.log(result)
 
     if (result.length > 0) {
-      setUsers(result); 
+      setUsers(result);
     } else {
-      Alert.alert('User Not Found', 'No user matches the search criteria.'); 
+      Alert.alert('User Not Found', 'No user matches the search criteria.');
     }
   };
 
-  // Handle user login
-  const handleLogin = async (userId: number) => {
-    const db = await SQLite.openDatabaseAsync('User.db');
-    const currentTime = new Date().toISOString(); 
-    await db.runAsync(
-      `UPDATE UserData SET LastLogin = ? WHERE id = ?`,
-      [currentTime, userId]
-    );
-    // Refresh the user list
-    handleFetchUserData({ data: input });
-  };
-
-  // Handle user logout
-  const handleLogout = async (userId: number) => {
-    const db = await SQLite.openDatabaseAsync('User.db');
-    const currentTime = new Date().toISOString(); 
-    await db.runAsync(
-      `UPDATE UserData SET LastLogout = ? WHERE id = ?`,
-      [currentTime, userId]
-    );
-    // Refresh the user list
-    handleFetchUserData({ data: input });
-  };
-
-  // Navigate to the "New User"
+  // Navigate to the "New User" screen
   const handleNavigateToNewUser = () => {
-    router.push('/(tabs)/User');
+    router.push('/User');
   };
-
 
   useEffect(() => {
     initializeDatabase();
@@ -79,17 +55,18 @@ export default function InputScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Search</Text>
+      <Text style={styles.title}>Search User</Text>
 
       <View style={styles.group}>
-        <Text style={styles.search}>Search:</Text>
+        <Text style={styles.search}>Search by Name or ID:</Text>
         <TextInput
           style={styles.input}
-          placeholder="First Name, Last Name"
+          placeholder="Enter Name or ID"
           onChangeText={setInput}
           value={input}
+          keyboardType="default"
         />
-        <TouchableOpacity style={styles.button} onPress={() => handleFetchUserData({ data: input })}>
+        <TouchableOpacity style={styles.button} onPress={handleFetchUserData}>
           <Text style={styles.buttonText}>Search</Text>
         </TouchableOpacity>
       </View>
@@ -99,15 +76,18 @@ export default function InputScreen() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <View style={styles.userContainer}>
-            <Text>User: {item.Name}</Text>
-            <Text>Last Login: {item.LastLogin || 'N/A'}</Text>
-            <Text>Last Logout: {item.LastLogout || 'N/A'}</Text>
+            <Text><Text style={styles.label}>UserID:</Text>{item.id}</Text>
+            <Text><Text style={styles.label}>User:</Text> {item.Name}</Text>
+            <Text><Text style={styles.label}>Last Login: </Text>{item.LastLogin || 'N/A'}</Text>
+            <Text><Text style={styles.label}>Last Logout:</Text> {item.LastLogout || 'N/A'}</Text>
           </View>
         )}
+        contentContainerStyle={styles.flatListContent}
+        ListEmptyComponent={<Text>No users found.</Text>}
       />
 
       <TouchableOpacity style={styles.button_1} onPress={handleNavigateToNewUser}>
-        <Text style={styles.buttonText}>New User</Text>
+        <Text style={styles.buttonText1}>New User</Text>
       </TouchableOpacity>
     </View>
   );
@@ -128,19 +108,15 @@ const styles = StyleSheet.create({
     color: '#3a63f2',
   },
   group: {
-    fontSize: 35,
-    fontWeight: 'bold',
-    color: 'black',
     width: '100%',
     paddingHorizontal: 20,
-    top: 20,
+    marginTop: 20,
   },
   search: {
     fontSize: 25,
     fontWeight: 'bold',
     color: '#3a63f2',
-    marginBottom: 20,
-    top: 10,
+    marginBottom: 10,
   },
   input: {
     fontSize: 15,
@@ -149,36 +125,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#3a63f2',
     borderRadius: 10,
-    width: 375,
-    backgroundColor: '#f0f0f0',
+    width: '100%',
+    backgroundColor: '#fff',
     padding: 10,
     marginBottom: 10,
   },
   button: {
-    width: 375,
+    width: '100%',
     height: 55,
     backgroundColor: '#3a63f2',
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 40,
+    marginBottom: 20,
   },
   button_1: {
-    width: 100,
-    height: 40,
+    width: 80,
+    height: 30,
     backgroundColor: '#3a63f2',
-    position: 'absolute',
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    top: 50,
-    right: 10,
-    margin: 10,
+    position: 'absolute',
+    top: 70,
+    right: 20,
   },
-
   buttonText: {
     color: 'white',
     fontSize: 20,
+    fontWeight: 'bold',
+  },
+  buttonText1: {
+    color: 'white',
+    fontSize: 12,
     fontWeight: 'bold',
   },
   userContainer: {
@@ -186,31 +165,17 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#fff',
     borderRadius: 5,
-    width: 375,
+    width: '90%',
     borderWidth: 1,
     borderColor: '#ccc',
   },
-  buttonGroup: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
+  flatListContent: {
+    width: 450,
+    padding: 10,
+    
   },
-  loginButton: {
-    flex: 1,
-    height: 40,
-    backgroundColor: '#4CAF50',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 5,
-  },
-  logoutButton: {
-    flex: 1,
-    height: 40,
-    backgroundColor: '#F44336',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 5,
-  },
+  label:{
+    fontStyle: 'normal',
+    fontWeight: 'bold',
+  }
 });
